@@ -1,40 +1,6 @@
---[ R15 to R6 Animation Replacer - Estilo GAZE ]
+--[ R15 to R6 Animation Replacer ]
 --[ Persiste após reset/morte sem precisar reinjetar ]
 
-if getgenv().R6AnimReplaceLoaded then
-    -- Se já carregado, reconecta o evento e reaplica
-    if not getgenv()._r6AnimConnection then
-        local Players = game:GetService("Players")
-        local player = Players.LocalPlayer
-        getgenv()._r6AnimConnection = player.CharacterAdded:Connect(function(character)
-            task.spawn(function()
-                -- Aguarda o Animate carregar
-                local animate = character:WaitForChild("Animate", 10)
-                if animate then
-                    -- Destrói o Animate original e cria um novo
-                    local newAnimate = getgenv().createNewAnimate(character, getgenv().R6Anims)
-                    animate:Destroy()
-                    newAnimate.Parent = character
-                end
-            end)
-        end)
-        if player.Character then
-            task.spawn(function()
-                local animate = player.Character:WaitForChild("Animate", 10)
-                if animate then
-                    local newAnimate = getgenv().createNewAnimate(player.Character, getgenv().R6Anims)
-                    animate:Destroy()
-                    newAnimate.Parent = player.Character
-                end
-            end)
-        end
-    end
-    return
-end
-
-getgenv().R6AnimReplaceLoaded = true
-
--- Tabela global de animações
 getgenv().R6Anims = getgenv().R6Anims or {
     Idle     = {"12521158637", "12521162526"},
     Walk     = "12518152696",
@@ -47,151 +13,135 @@ getgenv().R6Anims = getgenv().R6Anims or {
     Sit      = "12520993168"
 }
 
--- Função que cria um novo script Animate com os IDs personalizados
-function getgenv().createNewAnimate(character, anims)
-    local animate = Instance.new("LocalScript")
-    animate.Name = "Animate"
-    
-    local scriptContent = [[
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local character = script.Parent
-local humanoid = character:WaitForChild("Humanoid")
+local player  = Players.LocalPlayer
 
-local animsData = ]] .. game:GetService("HttpService"):JSONEncode(anims) .. [[
-
--- Idle
-local idle = Instance.new("Animation")
-idle.AnimationId = "rbxassetid://" .. (type(animsData.Idle) == "table" and animsData.Idle[1] or animsData.Idle)
-local idleTrack = humanoid:LoadAnimation(idle)
-
--- Idle2
-local idle2 = Instance.new("Animation")
-idle2.AnimationId = "rbxassetid://" .. (type(animsData.Idle) == "table" and animsData.Idle[2] or animsData.Idle)
-
--- Walk
-local walk = Instance.new("Animation")
-walk.AnimationId = "rbxassetid://" .. animsData.Walk
-
--- Run
-local run = Instance.new("Animation")
-run.AnimationId = "rbxassetid://" .. animsData.Run
-
--- Jump
-local jump = Instance.new("Animation")
-jump.AnimationId = "rbxassetid://" .. animsData.Jump
-
--- Fall
-local fall = Instance.new("Animation")
-fall.AnimationId = "rbxassetid://" .. animsData.Fall
-
--- Climb
-local climb = Instance.new("Animation")
-climb.AnimationId = "rbxassetid://" .. animsData.Climb
-
--- Swim
-local swim = Instance.new("Animation")
-swim.AnimationId = "rbxassetid://" .. animsData.Swim
-
--- SwimIdle
-local swimIdle = Instance.new("Animation")
-swimIdle.AnimationId = "rbxassetid://" .. animsData.SwimIdle
-
--- Sit
-local sit = Instance.new("Animation")
-sit.AnimationId = "rbxassetid://" .. animsData.Sit
-
--- Controle de estados
-local currentAnim = nil
-
-local function playAnim(anim, fadeTime)
-    if currentAnim == anim then return end
-    if currentAnim then currentAnim:Stop(0) end
-    currentAnim = anim
-    if anim then anim:Play(0, 1, fadeTime or 0.1) end
+local function stopAllTracks(character)
+    local hum = character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+            track:Stop(0)
+        end
+    end
 end
 
-humanoid.StateChanged:Connect(function(oldState, newState)
-    if newState == Enum.HumanoidStateType.Running then
-        if humanoid.MoveDirection.Magnitude > 0 then
-            if humanoid:GetState() == Enum.HumanoidStateType.Running then
-                playAnim(run:Clone(), 0.1)
-            else
-                playAnim(walk:Clone(), 0.1)
-            end
-        else
-            playAnim(idle:Clone(), 0.1)
-        end
-    elseif newState == Enum.HumanoidStateType.Landed then
-        task.wait(0.05)
-        playAnim(idle:Clone(), 0.1)
-    elseif newState == Enum.HumanoidStateType.Jumping then
-        playAnim(jump:Clone(), 0)
-    elseif newState == Enum.HumanoidStateType.Freefall then
-        playAnim(fall:Clone(), 0.1)
-    elseif newState == Enum.HumanoidStateType.Climbing then
-        playAnim(climb:Clone(), 0.1)
-    elseif newState == Enum.HumanoidStateType.Swimming then
-        if humanoid.MoveDirection.Magnitude > 0 then
-            playAnim(swim:Clone(), 0.1)
-        else
-            playAnim(swimIdle:Clone(), 0.1)
-        end
-    elseif newState == Enum.HumanoidStateType.Seated then
-        playAnim(sit:Clone(), 0.1)
+local function refresh(character)
+    local hum = character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum:ChangeState(Enum.HumanoidStateType.Freefall)
     end
-end)
-
--- Animação Idle aleatória
-task.spawn(function()
-    while humanoid.Parent and humanoid.Health > 0 do
-        if humanoid:GetState() == Enum.HumanoidStateType.Running and humanoid.MoveDirection.Magnitude == 0 then
-            local randomIdle = math.random(1, 2)
-            local idleAnim = (randomIdle == 1 and idle or idle2)
-            playAnim(idleAnim:Clone(), 1)
-        end
-        task.wait(5)
-    end
-end)
-]]
-    
-    animate.Source = scriptContent
-    return animate
 end
 
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-
--- Função principal para aplicar as animações (substitui o Animate original)
 local function applyAnims(character)
     if not character then return end
-    
-    -- Aguarda o personagem ter um Humanoid
-    local humanoid = character:WaitForChild("Humanoid", 10)
-    if not humanoid then return end
-    
-    -- Aguarda ou cria o Animate
+
     local animate = character:FindFirstChild("Animate")
     if not animate then
         animate = character:WaitForChild("Animate", 10)
+        if not animate then return end
     end
-    
-    if animate then
-        -- Cria um novo Animate com as animações personalizadas
-        local newAnimate = getgenv().createNewAnimate(character, getgenv().R6Anims)
-        -- Substitui o antigo pelo novo
-        animate:Destroy()
-        task.wait(0.05)
-        newAnimate.Parent = character
+
+    -- Aguarda os filhos do Animate carregarem de verdade
+    task.wait(0.3)
+    stopAllTracks(character)
+
+    -- Idle
+    local idleFolder = animate:FindFirstChild("idle")
+    if idleFolder then
+        local ids = getgenv().R6Anims.Idle
+        local anim1 = idleFolder:FindFirstChild("Animation1")
+        local anim2 = idleFolder:FindFirstChild("Animation2")
+        if type(ids) == "table" then
+            if anim1 and ids[1] then anim1.AnimationId = "rbxassetid://" .. ids[1] end
+            if anim2 and ids[2] then anim2.AnimationId = "rbxassetid://" .. ids[2] end
+        else
+            if anim1 then anim1.AnimationId = "rbxassetid://" .. ids end
+            if anim2 then anim2.AnimationId = "rbxassetid://" .. ids end
+        end
     end
+
+    -- Walk
+    local walkFolder = animate:FindFirstChild("walk")
+    if walkFolder then
+        local w = walkFolder:FindFirstChild("WalkAnim")
+        if w then w.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Walk end
+    end
+
+    -- Run
+    local runFolder = animate:FindFirstChild("run")
+    if runFolder then
+        local r = runFolder:FindFirstChild("RunAnim")
+        if r then r.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Run end
+    end
+
+    -- Jump
+    local jumpFolder = animate:FindFirstChild("jump")
+    if jumpFolder then
+        local j = jumpFolder:FindFirstChild("JumpAnim")
+        if j then j.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Jump end
+    end
+
+    -- Fall
+    local fallFolder = animate:FindFirstChild("fall")
+    if fallFolder then
+        local f = fallFolder:FindFirstChild("FallAnim")
+        if f then f.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Fall end
+    end
+
+    -- Climb
+    local climbFolder = animate:FindFirstChild("climb")
+    if climbFolder then
+        local c = climbFolder:FindFirstChild("ClimbAnim")
+        if c then c.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Climb end
+    end
+
+    -- Swim
+    local swimFolder = animate:FindFirstChild("swim")
+    if swimFolder then
+        local s = swimFolder:FindFirstChild("Swim")
+        if s then s.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Swim end
+    end
+
+    -- SwimIdle
+    local swimIdleFolder = animate:FindFirstChild("swimidle")
+    if swimIdleFolder then
+        local si = swimIdleFolder:FindFirstChild("SwimIdle")
+        if si then si.AnimationId = "rbxassetid://" .. getgenv().R6Anims.SwimIdle end
+    end
+
+    -- Sit
+    local sitFolder = animate:FindFirstChild("sit")
+    if sitFolder then
+        local sitId = getgenv().R6Anims.Sit
+        if sitId then
+            local s1 = sitFolder:FindFirstChild("Sit")
+            local s2 = sitFolder:FindFirstChild("SitIdle")
+            if s1 then s1.AnimationId = "rbxassetid://" .. sitId end
+            if s2 then s2.AnimationId = "rbxassetid://" .. sitId end
+        end
+    end
+
+    task.wait(0.1)
+    refresh(character)
 end
 
--- Aplica no personagem atual se existir
+if getgenv().R6AnimReplaceLoaded then
+    if not getgenv()._r6AnimConnection then
+        getgenv()._r6AnimConnection = player.CharacterAdded:Connect(function(character)
+            task.spawn(applyAnims, character)
+        end)
+        if player.Character then
+            task.spawn(applyAnims, player.Character)
+        end
+    end
+    return
+end
+getgenv().R6AnimReplaceLoaded = true
+
 if player.Character then
     task.spawn(applyAnims, player.Character)
 end
 
--- Conecta o evento de respawn
 getgenv()._r6AnimConnection = player.CharacterAdded:Connect(function(character)
     task.spawn(applyAnims, character)
 end)
