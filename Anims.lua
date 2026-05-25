@@ -25,13 +25,6 @@ local function stopAllTracks(character)
     end
 end
 
-local function refresh(character)
-    local hum = character:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum:ChangeState(Enum.HumanoidStateType.Freefall)
-    end
-end
-
 local function applyAnims(character)
     if not character then return end
 
@@ -41,7 +34,6 @@ local function applyAnims(character)
         if not animate then return end
     end
 
-    -- Aguarda os filhos do Animate carregarem de verdade
     task.wait(0.3)
     stopAllTracks(character)
 
@@ -121,10 +113,21 @@ local function applyAnims(character)
         end
     end
 
+    -- Refresh
     task.wait(0.1)
-    refresh(character)
-end
+    local hum = character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        if hum:GetState() == Enum.HumanoidStateType.Seated then
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+            task.wait(0.1)
+            hum:ChangeState(Enum.HumanoidStateType.Seated)
+        else
+            hum:ChangeState(Enum.HumanoidStateType.Freefall)
+        end
+    end
+end -- fecha o applyAnims
 
+-- Proteção contra dupla injeção (DEPOIS de tudo definido)
 if getgenv().R6AnimReplaceLoaded then
     if not getgenv()._r6AnimConnection then
         getgenv()._r6AnimConnection = player.CharacterAdded:Connect(function(character)
