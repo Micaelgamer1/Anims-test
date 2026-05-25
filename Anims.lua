@@ -1,9 +1,5 @@
 --[ R15 to R6 Animation Replacer ]
---[ Funciona com qualquer executor, compatível FE ]
---[ Substitui Walk, Run, Jump, Fall, Climb, Swim, SwimIdle, Idle1, Idle2 e Sit ]
-
-if getgenv().R6AnimReplaceLoaded then return end
-getgenv().R6AnimReplaceLoaded = true
+--[ Persiste após reset/morte sem precisar reinjetar ]
 
 -- Tabela global de animações (edite os IDs conforme desejar)
 getgenv().R6Anims = getgenv().R6Anims or {
@@ -19,15 +15,14 @@ getgenv().R6Anims = getgenv().R6Anims or {
 }
 
 local function applyAnims(character)
-    if not character or character ~= game.Players.LocalPlayer.Character then return end
+    if not character then return end
 
     local animate = character:FindFirstChild("Animate")
     if not animate then
-        animate = character:WaitForChild("Animate", 5)
+        animate = character:WaitForChild("Animate", 10)
         if not animate then return end
     end
 
-    -- Seta a animação dentro de uma subpasta do Animate
     local function setAnim(folderName, childName, id)
         if not id then return end
         local folder = animate:FindFirstChild(folderName)
@@ -38,7 +33,7 @@ local function applyAnims(character)
         end
     end
 
-    -- Idle (dois slots)
+    -- Idle
     local idleFolder = animate:FindFirstChild("idle")
     if idleFolder then
         local ids = getgenv().R6Anims.Idle
@@ -67,13 +62,28 @@ local function applyAnims(character)
     if sitFolder then
         local sitId = getgenv().R6Anims.Sit
         if sitId then
-            local sitAnim = sitFolder:FindFirstChild("Sit")
-            if sitAnim then sitAnim.AnimationId = "rbxassetid://" .. sitId end
+            local sitAnim     = sitFolder:FindFirstChild("Sit")
             local sitIdleAnim = sitFolder:FindFirstChild("SitIdle")
+            if sitAnim     then sitAnim.AnimationId     = "rbxassetid://" .. sitId end
             if sitIdleAnim then sitIdleAnim.AnimationId = "rbxassetid://" .. sitId end
         end
     end
 end
+
+-- Proteção contra dupla injeção (DEPOIS da função estar definida)
+if getgenv().R6AnimReplaceLoaded then
+    if not getgenv()._r6AnimConnection then
+        local player = game.Players.LocalPlayer
+        getgenv()._r6AnimConnection = player.CharacterAdded:Connect(function(character)
+            task.spawn(applyAnims, character)
+        end)
+        if player.Character then
+            task.spawn(applyAnims, player.Character)
+        end
+    end
+    return
+end
+getgenv().R6AnimReplaceLoaded = true
 
 local player = game.Players.LocalPlayer
 
@@ -81,6 +91,6 @@ if player.Character then
     task.spawn(applyAnims, player.Character)
 end
 
-player.CharacterAdded:Connect(function(character)
+getgenv()._r6AnimConnection = player.CharacterAdded:Connect(function(character)
     task.spawn(applyAnims, character)
 end)
