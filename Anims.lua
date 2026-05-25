@@ -14,6 +14,27 @@ getgenv().R6Anims = getgenv().R6Anims or {
     Sit      = "12520993168"
 }
 
+local Players = game:GetService("Players")
+local player  = Players.LocalPlayer
+
+-- Para todos os tracks rodando
+local function stopAllTracks(character)
+    local hum = character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+            track:Stop(0)
+        end
+    end
+end
+
+-- Força o Roblox a recarregar as animações de movimento
+local function refresh(character)
+    local hum = character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum:ChangeState(Enum.HumanoidStateType.Freefall)
+    end
+end
+
 local function applyAnims(character)
     if not character then return end
 
@@ -23,15 +44,8 @@ local function applyAnims(character)
         if not animate then return end
     end
 
-    local function setAnim(folderName, childName, id)
-        if not id then return end
-        local folder = animate:FindFirstChild(folderName)
-        if not folder then return end
-        local animObj = folder:FindFirstChild(childName)
-        if animObj then
-            animObj.AnimationId = "rbxassetid://" .. tostring(id)
-        end
-    end
+    -- Para animações em cache antes de trocar os IDs
+    stopAllTracks(character)
 
     -- Idle
     local idleFolder = animate:FindFirstChild("idle")
@@ -48,14 +62,54 @@ local function applyAnims(character)
         end
     end
 
-    -- Movimentos básicos
-    setAnim("walk",     "WalkAnim",  getgenv().R6Anims.Walk)
-    setAnim("run",      "RunAnim",   getgenv().R6Anims.Run)
-    setAnim("jump",     "JumpAnim",  getgenv().R6Anims.Jump)
-    setAnim("fall",     "FallAnim",  getgenv().R6Anims.Fall)
-    setAnim("climb",    "ClimbAnim", getgenv().R6Anims.Climb)
-    setAnim("swim",     "Swim",      getgenv().R6Anims.Swim)
-    setAnim("swimidle", "SwimIdle",  getgenv().R6Anims.SwimIdle)
+    -- Walk
+    local walkFolder = animate:FindFirstChild("walk")
+    if walkFolder then
+        local w = walkFolder:FindFirstChild("WalkAnim")
+        if w then w.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Walk end
+    end
+
+    -- Run
+    local runFolder = animate:FindFirstChild("run")
+    if runFolder then
+        local r = runFolder:FindFirstChild("RunAnim")
+        if r then r.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Run end
+    end
+
+    -- Jump
+    local jumpFolder = animate:FindFirstChild("jump")
+    if jumpFolder then
+        local j = jumpFolder:FindFirstChild("JumpAnim")
+        if j then j.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Jump end
+    end
+
+    -- Fall
+    local fallFolder = animate:FindFirstChild("fall")
+    if fallFolder then
+        local f = fallFolder:FindFirstChild("FallAnim")
+        if f then f.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Fall end
+    end
+
+    -- Climb
+    local climbFolder = animate:FindFirstChild("climb")
+    if climbFolder then
+        local c = climbFolder:FindFirstChild("ClimbAnim")
+        if c then c.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Climb end
+    end
+
+    -- Swim
+    local swimFolder = animate:FindFirstChild("swim")
+    if swimFolder then
+        local s = swimFolder:FindFirstChild("Swim")
+        if s then s.AnimationId = "rbxassetid://" .. getgenv().R6Anims.Swim end
+    end
+
+    -- SwimIdle
+    local swimIdleFolder = animate:FindFirstChild("swimidle")
+    if swimIdleFolder then
+        local si = swimIdleFolder:FindFirstChild("SwimIdle")
+        if si then si.AnimationId = "rbxassetid://" .. getgenv().R6Anims.SwimIdle end
+    end
 
     -- Sit
     local sitFolder = animate:FindFirstChild("sit")
@@ -68,12 +122,15 @@ local function applyAnims(character)
             if sitIdleAnim then sitIdleAnim.AnimationId = "rbxassetid://" .. sitId end
         end
     end
+
+    -- Força o Roblox a recarregar as animações
+    task.wait(0.1)
+    refresh(character)
 end
 
--- Proteção contra dupla injeção (DEPOIS da função estar definida)
+-- Proteção contra dupla injeção (DEPOIS de tudo definido)
 if getgenv().R6AnimReplaceLoaded then
     if not getgenv()._r6AnimConnection then
-        local player = game.Players.LocalPlayer
         getgenv()._r6AnimConnection = player.CharacterAdded:Connect(function(character)
             task.spawn(applyAnims, character)
         end)
@@ -85,8 +142,6 @@ if getgenv().R6AnimReplaceLoaded then
 end
 getgenv().R6AnimReplaceLoaded = true
 
-local player = game.Players.LocalPlayer
-
 if player.Character then
     task.spawn(applyAnims, player.Character)
 end
@@ -94,3 +149,4 @@ end
 getgenv()._r6AnimConnection = player.CharacterAdded:Connect(function(character)
     task.spawn(applyAnims, character)
 end)
+
